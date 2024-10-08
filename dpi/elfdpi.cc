@@ -24,7 +24,8 @@
 // MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 #include "vpi_user.h"
-#include "elfdpi.h"
+// #include "elfdpi.h"
+#include "vc_hdrs.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -35,21 +36,29 @@
 #include "elf.h"
 #include <map>
 #include <string>
+#include <string.h>
 #include <vpi_user.h>
 
 std::map<std::string, uint64_t> symbols;
 std::map<std::string, uint64_t> sections;
 std::map<std::string, uint64_t> section_length;
 
-uint64_t get_section_address (const char* symb) {
+uint64_t entry_address; // Global variable to store the entry address
+
+// Function to get the entry address without input arguments
+unsigned long long get_entry_address() {
+  return entry_address;
+}
+
+unsigned long long get_section_address (const char* symb) {
   return sections[symb];
 }
 
-uint64_t get_symbol_address (const char* symb) {
+unsigned long long get_symbol_address (const char* symb) {
   return symbols[symb];
 }
 
-uint64_t get_section_size (const char* symb) {
+unsigned long long get_section_size (const char* symb) {
   return section_length[symb];
 }
 
@@ -114,11 +123,14 @@ void* read_elf(const char* fn) {
     } \
   } while(0)
 
-  if (IS_ELF32(*eh64))
+  if (IS_ELF32(*eh64)) {
     LOAD_ELF(Elf32_Ehdr, Elf32_Phdr, Elf32_Shdr, Elf32_Sym);
-  else
+    entry_address = ((Elf32_Ehdr*)eh64)->e_entry; // Store the entry address for 32-bit
+  }
+  else {
     LOAD_ELF(Elf64_Ehdr, Elf64_Phdr, Elf64_Shdr, Elf64_Sym);
-
+    entry_address = ((Elf64_Ehdr*)eh64)->e_entry; // Store the entry address for 64-bit
+  }
   munmap(buf, size);
 
   return &symbols;
